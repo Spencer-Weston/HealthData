@@ -1,4 +1,4 @@
-import os
+import os, json
 import requests
 from flask import Flask, session, redirect, request, url_for
 from requests_oauthlib import OAuth2Session
@@ -48,8 +48,11 @@ def callback():
                         OURA_TOKEN_URL,
                         client_secret=OURA_CLIENT_SECRET,
                         authorization_response=request.url)
+
+    update_json_token()
+
     return redirect(url_for('.sleep'))
-    #return session
+
 
 @app.route('/sleep')
 def sleep():
@@ -68,8 +71,7 @@ def sleep():
     df = pd.DataFrame(json_sleep['sleep'])
     df.to_csv(LOCAL_STORAGE_PATH)
     return redirect(url_for('.activity'))
-    #return '<p>Successfully stored sleep data</p><p>{}</p>'\
-    #    .format(df.describe())
+
 
 
 @app.route('/activity')
@@ -112,23 +114,44 @@ def readiness():
     return '<p>Successfully stored readiness data</p><p>{}</p>'\
         .format(df.describe())
 
+
 @app.route('/')
 def home():
     """Welcome page of the sleep data app.
     """
-    #collect_all()
-    return "<h1>Welcome to your Oura app</h1>"
+    load_token_json('token.json')
+    return redirect(url_for('.oura_login'))
+    # return "<h1>Welcome to your Oura app</h1>"
 
-def collect_all(access_token=None):
-    if not access_token:
-        oura_login()
-        session = callback()
 
-    data = dict()
+def load_token_json(path):
+    with open(path, 'r+') as file:
+        env = json.load(file)
+        os.environ['OURA_CLIENT_ID'] = env['client_id']
+        os.environ['OURA_CLIENT_SECRET'] = env['client_secret']
+        os.environ['OURA_ACCESS_TOKEN'] = env['access_token']
+        os.environ['OURA_REFRESH_TOKEN'] = env['refresh_token']
 
+
+def update_json_token():
+    # Use session['oauth'] to update JSON
+    with open('token.json', 'r+') as file:
+        test = json.load(file)
+        test['ACCESS_TOKEN'] = 'cows'
+        file.seek(0)
+        json.dump(test, file, indent=4)
+
+
+
+
+def test_run():
+    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+    app.secret_key = os.urandom(24)
+    app.run(debug=False, host='127.0.0.1', port=8080)
 
 
 if __name__ == "__main__":
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
     app.secret_key = os.urandom(24)
     app.run(debug=False, host='127.0.0.1', port=8080)
+    input("Press any key to close")
