@@ -73,7 +73,6 @@ def sleep():
     return redirect(url_for('.activity'))
 
 
-
 @app.route('/activity')
 def activity():
     """Sleep data page
@@ -105,10 +104,10 @@ def readiness():
     """
     oauth_token = session['oauth']['access_token']
 
-    activity_data = requests.get('https://api.ouraring.com/v1/readiness?'
+    readiness_data = requests.get('https://api.ouraring.com/v1/readiness?'
                                  'start={}&end={}&access_token={}'
                                  .format(START_DATE, END_DATE, oauth_token))
-    json_readiness = activity_data.json()
+    json_readiness = readiness_data.json()
     df = pd.DataFrame(json_readiness['readiness'])
     df.to_csv(LOCAL_READINESS_PATH)
     return '<p>Successfully stored readiness data</p><p>{}</p>'\
@@ -119,35 +118,61 @@ def readiness():
 def home():
     """Welcome page of the sleep data app.
     """
+    # TODO create handling for when no json exists (Don't want to keep information on github)
     load_token_json('token.json')
-    return redirect(url_for('.oura_login'))
-    # return "<h1>Welcome to your Oura app</h1>"
+    access_token = os.getenv("access_token")
+    refresh_token = os.getenv("refresh_token")
+    if not (access_token or refresh_token):
+        return redirect(url_for('.oura_login'))
+    else:
+        token = {'access_token': access_token, 'refresh_token': refresh_token}
+
+    oura_session = OAuth2Session(os.getenv('OURA_CLIENT_ID'), token=token, auto_refresh_url=OURA_TOKEN_URL)
+
+    if oura_session.authorized:
+        oauth_token = oura_session.access_token
+
+        sleep_data = requests.get('https://api.ouraring.com/v1/sleep?'
+                                  'start={}&end={}&access_token={}'
+                                  .format(START_DATE, END_DATE, oauth_token))
+
+        activity_data = requests.get('https://api.ouraring.com/v1/activity?'
+                                     'start={}&end={}&access_token={}'
+                                     .format(START_DATE, END_DATE, oauth_token))
+
+        readiness_data = requests.get('https://api.ouraring.com/v1/readiness?'
+                                      'start={}&end={}&access_token={}'
+                                      .format(START_DATE, END_DATE, oauth_token))
+
+        # Parse data from here and store in database
+
+    else:
+        # Go use the refresh token here
+        pass
+
+    print('who knows! ')
+    #return redirect(url_for('.oura_login'))
 
 
 def load_token_json(path):
+    # TODO create handling for when no json exists (Don't want to keep information on github)
     with open(path, 'r+') as file:
         env = json.load(file)
-        os.environ['OURA_CLIENT_ID'] = env['client_id']
-        os.environ['OURA_CLIENT_SECRET'] = env['client_secret']
-        os.environ['OURA_ACCESS_TOKEN'] = env['access_token']
-        os.environ['OURA_REFRESH_TOKEN'] = env['refresh_token']
+        for i in env.keys():
+            if type(env[i]) is str:
+                os.environ[i] = env[i]
 
 
 def update_json_token():
     # Use session['oauth'] to update JSON
     with open('token.json', 'r+') as file:
-        test = json.load(file)
-        test['ACCESS_TOKEN'] = 'cows'
+        data = json.load(file)
+
+    data.update(session['oauth'])
+
+    with open('token.json', 'w+') as file:
         file.seek(0)
-        json.dump(test, file, indent=4)
-
-
-
-
-def test_run():
-    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
-    app.secret_key = os.urandom(24)
-    app.run(debug=False, host='127.0.0.1', port=8080)
+        json.dump(data, file, indent=4)
 
 
 if __name__ == "__main__":
