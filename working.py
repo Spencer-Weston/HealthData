@@ -129,26 +129,39 @@ def home():
 
     oura_session = OAuth2Session(os.getenv('OURA_CLIENT_ID'), token=token, auto_refresh_url=OURA_TOKEN_URL)
 
-    if oura_session.authorized:
-        oauth_token = oura_session.access_token
+    oauth_token = oura_session.access_token
 
-        sleep_data = requests.get('https://api.ouraring.com/v1/sleep?'
+    info_test = requests.get('https://api.ouraring.com/v1/userinfo?'
+                             'access_token={}'.format(oauth_token))
+    if info_test.status_code == 401:
+        # Refresh Token
+        extra = {
+            'client_id': os.getenv('OURA_CLIENT_ID'),
+            'client_secret': os.getenv('OURA_CLIENT_SECRET'),
+        }
+        session['oauth'] = oura_session.refresh_token(OURA_TOKEN_URL, **extra)
+        update_json_token()
+        oauth_token = oura_session.access_token
+        info_test = requests.get('https://api.ouraring.com/v1/userinfo?'
+                                 'access_token={}'.format(oauth_token))
+
+        if info_test.status_code == 401:
+            # Access token
+            return redirect(url_for('.oura_login'))
+
+    sleep_data = requests.get('https://api.ouraring.com/v1/sleep?'
+                              'start={}&end={}&access_token={}'
+                              .format(START_DATE, END_DATE, oauth_token))
+
+    activity_data = requests.get('https://api.ouraring.com/v1/activity?'
+                                 'start={}&end={}&access_token={}'
+                                 .format(START_DATE, END_DATE, oauth_token))
+
+    readiness_data = requests.get('https://api.ouraring.com/v1/readiness?'
                                   'start={}&end={}&access_token={}'
                                   .format(START_DATE, END_DATE, oauth_token))
 
-        activity_data = requests.get('https://api.ouraring.com/v1/activity?'
-                                     'start={}&end={}&access_token={}'
-                                     .format(START_DATE, END_DATE, oauth_token))
-
-        readiness_data = requests.get('https://api.ouraring.com/v1/readiness?'
-                                      'start={}&end={}&access_token={}'
-                                      .format(START_DATE, END_DATE, oauth_token))
-
-        # Parse data from here and store in database
-
-    else:
-        # Go use the refresh token here
-        pass
+    # Parse data from here and store in database
 
     print('who knows! ')
     #return redirect(url_for('.oura_login'))
