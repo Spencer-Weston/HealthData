@@ -87,8 +87,6 @@ def activity():
     df = pd.DataFrame(json_activity['activity'])
     df.to_csv(LOCAL_ACTIVITY_PATH)
     return redirect(url_for('.readiness'))
-    #return '<p>Successfully stored activity data</p><p>{}</p>'\
-    #    .format(df.describe())
 
 
 @app.route('/readiness')
@@ -111,7 +109,7 @@ def readiness():
         .format(df.describe())
 
 
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def home():
     """Welcome page of the sleep data app.
     """
@@ -174,8 +172,20 @@ def home():
 
     # Parse data from here and store in database
 
-    print('who knows! ')
-    #return redirect(url_for('.oura_login'))
+    return redirect(url_for('.shutdown'))
+
+
+@app.route('/shutdown', methods=['GET'])
+def shutdown():
+    shutdown_server()
+    return 'Server shutting down...'
+
+
+def shutdown_server():
+    func = request.environ.get('werkzeug.server.shutdown')
+    if func is None:
+        raise RuntimeError('Not running with the Werkzeug Server')
+    func()
 
 
 def create_token_json(path):
@@ -213,5 +223,5 @@ if __name__ == "__main__":
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
     # logging.basicConfig(filename='example.log', level=logging.DEBUG)
     app.secret_key = os.urandom(24)
-    app.run(debug=False, host='127.0.0.1', port=8080)
-    input("Press any key to close")
+    test = app.run(debug=False, host='127.0.0.1', port=8080)
+    print('finito')
