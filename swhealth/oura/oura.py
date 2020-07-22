@@ -4,6 +4,7 @@ from flask import Flask, session, redirect, request, url_for
 from oauthlib.oauth2.rfc6749.errors import MissingTokenError
 from requests_oauthlib import OAuth2Session
 import pandas as pd
+import swhealth.oura.tables as tables
 
 app = Flask(__name__)
 
@@ -23,13 +24,13 @@ OURA_TOKEN_URL = 'https://api.ouraring.com/oauth/token'
 
 @app.route('/login')
 def oura_login():
-    """Directs the user to login to the Oura cloud for authorization.
+    """Directs the user to login to the oura cloud for authorization.
 
     A successful login sends the app to the callback URL which updates the token.json.
     """
     oura_session = OAuth2Session(OURA_CLIENT_ID)
 
-    # URL for Oura's authorization page for specific client
+    # URL for oura's authorization page for specific client
     authorization_url, state = oura_session.authorization_url(OURA_AUTH_URL)
 
     session['oauth_state'] = state
@@ -39,7 +40,7 @@ def oura_login():
 
 @app.route('/callback')
 def callback():
-    """Gets the access token from Oura's response url and redirects to the sleep data page."""
+    """Gets the access token from oura's response url and redirects to the sleep data page."""
     oura_session = OAuth2Session(OURA_CLIENT_ID, state=session['oauth_state'])
     session['oauth'] = oura_session.fetch_token(
                         OURA_TOKEN_URL,
@@ -161,16 +162,18 @@ def home():
     sleep_data = requests.get('https://api.ouraring.com/v1/sleep?'
                               'start={}&end={}&access_token={}'
                               .format(START_DATE, END_DATE, oauth_token))
+    tables.sleep.process(sleep_data)
 
     activity_data = requests.get('https://api.ouraring.com/v1/activity?'
                                  'start={}&end={}&access_token={}'
                                  .format(START_DATE, END_DATE, oauth_token))
+    tables.activity.process(activity_data)
 
     readiness_data = requests.get('https://api.ouraring.com/v1/readiness?'
                                   'start={}&end={}&access_token={}'
                                   .format(START_DATE, END_DATE, oauth_token))
+    tables.readiness.process(readiness_data)
 
-    # Parse data from here and store in database
 
     return redirect(url_for('.shutdown'))
 
@@ -217,6 +220,13 @@ def update_json_token():
     with open('token.json', 'w+') as file:
         file.seek(0)
         json.dump(data, file, indent=4)
+
+
+def process_data():
+    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+    # logging.basicConfig(filename='example.log', level=logging.DEBUG)
+    app.secret_key = os.urandom(24)
+    app.run(debug=False, host='127.0.0.1', port=8080)
 
 
 if __name__ == "__main__":
