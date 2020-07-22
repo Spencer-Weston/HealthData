@@ -1,6 +1,7 @@
-import os, json
+import os, json, logging
 import requests
 from flask import Flask, session, redirect, request, url_for
+from oauthlib.oauth2.rfc6749.errors import MissingTokenError
 from requests_oauthlib import OAuth2Session
 import pandas as pd
 
@@ -22,10 +23,9 @@ OURA_TOKEN_URL = 'https://api.ouraring.com/oauth/token'
 
 @app.route('/login')
 def oura_login():
-    """Login to the Oura cloud.
-    This will redirect to the login page
-    of the OAuth provider in our case the
-    Oura cloud's login page
+    """Directs the user to login to the Oura cloud for authorization.
+
+    A successful login sends the app to the callback URL which updates the token.json.
     """
     oura_session = OAuth2Session(OURA_CLIENT_ID)
 
@@ -39,10 +39,7 @@ def oura_login():
 
 @app.route('/callback')
 def callback():
-    """Callback page
-    Get the acces_token from response url from Oura.
-    Redirect to the sleep data page.
-    """
+    """Gets the access token from Oura's response url and redirects to the sleep data page."""
     oura_session = OAuth2Session(OURA_CLIENT_ID, state=session['oauth_state'])
     session['oauth'] = oura_session.fetch_token(
                         OURA_TOKEN_URL,
@@ -119,7 +116,11 @@ def home():
     """Welcome page of the sleep data app.
     """
     # TODO create handling for when no json exists (Don't want to keep information on github)
-    load_token_json('token.json')
+    try:
+        load_token_json('token.json')
+    except FileNotFoundError:
+        create_token_json('token.json')
+        load_token_json('token.json')
     access_token = os.getenv("access_token")
     refresh_token = os.getenv("refresh_token")
     if not (access_token or refresh_token):
@@ -133,22 +134,32 @@ def home():
 
     info_test = requests.get('https://api.ouraring.com/v1/userinfo?'
                              'access_token={}'.format(oauth_token))
+
     if info_test.status_code == 401:
         # Refresh Token
         extra = {
             'client_id': os.getenv('OURA_CLIENT_ID'),
             'client_secret': os.getenv('OURA_CLIENT_SECRET'),
         }
-        session['oauth'] = oura_session.refresh_token(OURA_TOKEN_URL, **extra)
+
+        # If the refresh token is bad (manually modified; not sure about expired), refresh_token() will return a missing
+        # token error. So, I'm implementing error handling here.
+        try:
+            session['oauth'] = oura_session.refresh_token(OURA_TOKEN_URL, **extra)
+        except MissingTokenError:
+            return redirect(url_for('.oura_login'))
+
         update_json_token()
         oauth_token = oura_session.access_token
         info_test = requests.get('https://api.ouraring.com/v1/userinfo?'
                                  'access_token={}'.format(oauth_token))
 
+        # If refresh token does not work, redirect to login
         if info_test.status_code == 401:
             # Access token
             return redirect(url_for('.oura_login'))
 
+    # Configuration should be done by this point, so request data
     sleep_data = requests.get('https://api.ouraring.com/v1/sleep?'
                               'start={}&end={}&access_token={}'
                               .format(START_DATE, END_DATE, oauth_token))
@@ -167,8 +178,18 @@ def home():
     #return redirect(url_for('.oura_login'))
 
 
+def create_token_json(path):
+    """Create the token.json file used for API access.
+
+    todo: is this safe? """
+    oura_client_id = input('Input your oura client id')
+    oura_client_secret = input('Input your oura client secret')
+    data = {"OURA_CLIENT_ID": oura_client_id, "OURA_CLIENT_SECRET": oura_client_secret}
+    with open(path, 'w') as f:
+        json.dump(data, f)
+
+
 def load_token_json(path):
-    # TODO create handling for when no json exists (Don't want to keep information on github)
     with open(path, 'r+') as file:
         env = json.load(file)
         for i in env.keys():
@@ -190,6 +211,7 @@ def update_json_token():
 
 if __name__ == "__main__":
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+    # logging.basicConfig(filename='example.log', level=logging.DEBUG)
     app.secret_key = os.urandom(24)
     app.run(debug=False, host='127.0.0.1', port=8080)
     input("Press any key to close")
