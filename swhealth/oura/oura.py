@@ -174,7 +174,6 @@ def home():
                                   .format(START_DATE, END_DATE, oauth_token))
     tables.readiness.process(readiness_data)
 
-
     return redirect(url_for('.shutdown'))
 
 
