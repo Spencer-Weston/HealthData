@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "healthdata"
+version = "0.1.0"
+description = ""
+authors = ["Spencer Weston <spencer.weston@wiliot.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+flask = "^3.0.3"
+requests = "^2.32.3"
+pandas = "^2.2.2"
+oauthlib = "^3.2.2"
+requests-oauthlib = "^2.0.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
