@@ -8,7 +8,7 @@ from flask import Flask, session, redirect, request, url_for
 from oauthlib.oauth2.rfc6749.errors import MissingTokenError
 from requests_oauthlib import OAuth2Session
 
-import python_src.oura.tables as tables
+import src.oura.tables as tables
 
 app = Flask(__name__)
 

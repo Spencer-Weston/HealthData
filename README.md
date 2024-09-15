@@ -5,7 +5,7 @@
 ### Local
 Build: 
 ```commandline
-docker build -t my-lambda-function .
+docker build -t health-metrics .
 ```
 
 Run:
