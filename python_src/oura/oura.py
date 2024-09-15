@@ -1,10 +1,14 @@
-import os, json, logging
+import json
+import logging
+import os
+
+import pandas as pd
 import requests
 from flask import Flask, session, redirect, request, url_for
 from oauthlib.oauth2.rfc6749.errors import MissingTokenError
 from requests_oauthlib import OAuth2Session
-import pandas as pd
-import swhealth.oura.tables as tables
+
+import python_src.oura.tables as tables
 
 app = Flask(__name__)
 
