@@ -2,8 +2,12 @@
 name = "healthdata"
 version = "0.1.0"
 description = ""
-authors = ["Spencer Weston <spencer.weston@wiliot.com>"]
+authors = ["Spencer Weston <spencerweston3214.com>"]
 readme = "README.md"
+packages = [
+    {include = "src"}
+    ]
+
 
 [tool.poetry.dependencies]
 python = "^3.10"
