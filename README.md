@@ -10,12 +10,12 @@ docker build -t health-metrics .
 
 Run:
 ```commandline
-docker run -p 9000:8080 my-lambda-function
+docker run -p 9000:8080 health-metrics
 ```
 
 Test:
 ```commandline
-curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{}'
+curl -X POST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{}'
 ```
 
 Setting Env vars in the dockerfile:

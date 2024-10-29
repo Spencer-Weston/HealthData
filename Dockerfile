@@ -18,9 +18,8 @@ RUN poetry config virtualenvs.create true && \
     poetry install
 
 
-
 # Copy your application code to the Lambda task root directory
 COPY . .
 
 # Set the command to your Lambda function handler
-CMD ["lambda_function.lambda_handler"]
+CMD ["src.hello_world.lambda_handler"]
